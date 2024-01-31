@@ -55,7 +55,10 @@ int main(int argc, char *argv[])
 
 ## Dependencies
 List of external dependencies:
-- Qt framework
+- qt6-base-dev (>= 6.6) (already in the deb package)
+- libdbus-1-3
+- libglib2.0-dev    
+
 
 ## Installation
 There are two ways to get ApplicationRegistration: 
@@ -64,8 +67,23 @@ There are two ways to get ApplicationRegistration:
 
 Let's go through both ways.
 ### .deb file
+```
+wget https://github.com/scientist73/ApplicationRegistration/releases/download/v1.0.0/ApplicationRegistration-1.0.0.0-linux.deb
+apt update
+apt install libdbus-1-3
+apt install libglib2.0-dev
+dpkg -i ApplicationRegistration-1.0.0.0-linux.deb
+```
 ### cmake 
 This section is not ready yet
+### Testing installation 
+To make sure the installation is correct 
+```
+cd /usr/bin/ApplicationRegistration
+./MAIN
+```
+(this test prog cannot be closed. One way to terminate it -
+close cmd line :)
 
 ## Implementation details
 This framework consists of several classes, each of which does
@@ -90,25 +108,3 @@ Some possible future development:
 1. implementation of **ActivateAction** func in 
 **org.freedesktop.Application** interface
 
-
-
-### TODO:
-+ убедиться в том, что нет утечки памяти
-- написать README.md:
-    + общие хар-ки (масштабируемый, ...)
-    + описать функционал
-    + описать зависимости
-    + описать баги и проблемы
-    + детали реализации
-    + дать пример использования
-    + указать возможные пути развития фрейморка
-    - описать процесс установки deb
-- git:
-    + добавить .gitignore
-    - загрузить на github
-+ создать deb файл (установочный)
-- docker тестирование
-+ добавить комментарии в CMakeLists.txt
-- сделать релиз с deb файлом
-
-- ? реализовать ActivateAction

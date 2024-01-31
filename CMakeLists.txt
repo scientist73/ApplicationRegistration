@@ -3,7 +3,7 @@
 # CMake build script for ApplicationRegistration.
 #
 
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.21)
 
 project(ApplicationRegistration LANGUAGES CXX)
 
@@ -29,6 +29,16 @@ set(app_reg_headers
 find_package(Qt6 REQUIRED COMPONENTS DBus)
 find_package(Qt6 REQUIRED COMPONENTS Core)
 
+set_target_properties(Qt6::Core PROPERTIES
+    OUTPUT_NAME "common"
+)
+set_target_properties(Qt6::DBus PROPERTIES
+    OUTPUT_NAME "common"
+)
+
+
+
+
 add_library(ApplicationRegistration STATIC
     ${app_reg_headers}
     src/ApplicationRegistration.cpp
@@ -40,7 +50,7 @@ target_link_libraries(ApplicationRegistration PUBLIC
 target_include_directories(ApplicationRegistration PRIVATE
     ${app_reg_include_dirs}
 )
-set_target_properties(ApplicationRegistration PROPERTIES PUBLIC_HEADER ${app_reg_headers})
+set_target_properties(ApplicationRegistration PROPERTIES PUBLIC_HEADER  ${app_reg_headers})
 
 add_executable(MAIN
   src/main.cpp
@@ -53,14 +63,25 @@ target_include_directories(MAIN PRIVATE
 
 include(GNUInstallDirs)
 install(TARGETS ApplicationRegistration MAIN
-    LIBRARY         DESTINATION ${CMAKE_INSTALL_LIBDIR}/ApplicationRegistration
+    LIBRARY         DESTINATION lib/x86_64-linux-gnu
     PUBLIC_HEADER   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ApplicatinRegistration
     RUNTIME         DESTINATION ${CMAKE_INSTALL_BINDIR}/ApplicationRegistration
 )
-#set(CMAKE_INSTALL_PREFIX "/home/scientist73/projects/ApplicationRegistration/install")
+install(DIRECTORY ${CMAKE_PREFIX_PATH}/lib/
+    DESTINATION lib/x86_64-linux-gnu
+    PATTERN "*.so"
+    PATTERN "cmake" EXCLUDE
+    PATTERN "objects-RelWithDebInfo" EXCLUDE
+    PATTERN "pkgconfig" EXCLUDE
+)
+#install(IMPORTED_RUNTIME_ARTIFACTS Qt6::Core Qt6::DBus
+#    LIBRARY         DESTINATION ${CMAKE_INSTALL_LIBDIR}/ApplicationRegistration)
+
+set(CMAKE_INSTALL_PREFIX "/home/scientist73/projects/ApplicationRegistration/install")
 
 
 
+include(InstallRequiredSystemLibraries)
 set(CPACK_PACKAGE_CONTACT "yusupovdanil2807@gmail.com")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "scientist73")
 set(CPACK_PACKAGE_VERSION_MAJOR 1)
@@ -68,7 +89,8 @@ set(CPACK_PACKAGE_VERSION_MINOR 0)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 set(CPACK_PACKAGE_VERSION_TWEAK 0)
 
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "qt6-base-dev, qt6-base-dev-tools, libqt6core6, libqt6dbus6")
+#set(CPACK_DEBIAN_PACKAGE_DEPENDS "qt6-base-dev (>= 6.6)")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libdbus-1-3, libglib2.0-dev")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
     "This framework registers the application in the linux OS")
 #set(CPACK_PACKAGE_DIRECTORY "/home/scientist73/projects/ApplicationRegistration/install")
