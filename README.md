@@ -72,10 +72,22 @@ wget https://github.com/scientist73/ApplicationRegistration/releases/download/v1
 apt update
 apt install libdbus-1-3
 apt install libglib2.0-dev
+apt install qt6-base-dev
 dpkg -i ApplicationRegistration-1.0.0.0-linux.deb
 ```
 ### cmake 
-This section is not ready yet
+```
+apt update
+apt install libdbus-1-3
+apt install libglib2.0-dev
+apt install qt6-base-dev
+git clone https://github.com/scientist73/ApplicationRegistration.git
+cd ApplicationRegistration
+cmake -S . -B build
+cd build
+cmake --build .
+cmake --install .
+```
 ### Testing installation 
 To make sure the installation is correct 
 ```
@@ -88,12 +100,13 @@ close cmd line :)
 ## Implementation details
 This framework consists of several classes, each of which does
 some specific task:
-- **DBusAdaptor** - parent class for all DBus interfaces,
+- **DBusInterfaceAdaptor** - parent class for all DBus interfaces,
 it registers DBus interface. 
 - **${DBusInterfaceName}** - child class of **DBusAdaptor**, it 
 reprecent dbus interface. To implement dbus interface needs
 add Q_CLASSINFO and define correcpond function. An example would
 be class **OrgFreedesktopApplication**.
+- **DBusServiceAdaptor** - main dbus class that manages all interfaces and represents a service
 - **DesktopApplication**
 
 This implementation allows easily add new dbus interfaces if needed.

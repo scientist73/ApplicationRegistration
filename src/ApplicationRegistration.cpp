@@ -4,6 +4,7 @@
 #include <QtDBus/QDBusConnectionInterface>
 #include <QProcess>
 
+#include <thread>
 
 
 //=============================================DBusAdaptor=============================================//
@@ -14,32 +15,61 @@
 //      connected to is also deleted).
 
 // public:
-DBusAdaptor::DBusAdaptor(QObject* parent, const QString& DBusServiceName) :
-    QDBusAbstractAdaptor(parent), parent(parent), DBusServiceName(&DBusServiceName), DBusObjectPath("")
-{}
+DBusInterfaceAdaptor::DBusInterfaceAdaptor(QObject* Parent, QDBusConnection* DBusConnection, const std::string* DBusServiceName) :
+    QDBusAbstractAdaptor(Parent),
+    Parent(Parent),
+    DBusConnection(DBusConnection),
+    ServiceName(DBusServiceName),
+    ObjectPath(nullptr),
+    IsInterfaceRegistered(false)
+{
+
+}
 
 // Register dbus interface
-// This func is virtual, so u can override in child class if needed
-bool DBusAdaptor::registerInterface(const QString& DBusObjectPath)
+// These funcs is virtual, so u can override in child class if needed
+bool DBusInterfaceAdaptor::registerInterface(const std::string& DBusObjectPath)
 {
-    this->DBusObjectPath = DBusObjectPath;
+    this->ObjectPath = new std::string(DBusObjectPath);
 
-    QDBusConnection dbusConnection = QDBusConnection::sessionBus();
-
-    if(!dbusConnection.interface()->isServiceRegistered(*DBusServiceName))
+    if(DBusConnection->interface()->isServiceRegistered(QString::fromStdString(*ServiceName)))
     {
-        dbusConnection.registerObject(DBusObjectPath, parent);
-        dbusConnection.registerService(*DBusServiceName);
+        DBusConnection->registerObject(QString::fromStdString(DBusObjectPath), Parent);
+        IsInterfaceRegistered = true;
         qDebug() << "New service registered\n";
         return true;
     }
     else
     {
-        qDebug() << "service is taken\n";
+        IsInterfaceRegistered = false;
+        qDebug() << "service is not exist\n";
         return false;
     }
+}
+bool DBusInterfaceAdaptor::isInterfaceRegistered()
+{
+    return IsInterfaceRegistered;
+}
+bool DBusInterfaceAdaptor::unregisterInterface()
+{
+    if (DBusConnection != nullptr && isInterfaceRegistered())
+    {
+        DBusConnection->unregisterObject(QString::fromStdString(*ObjectPath));
+        IsInterfaceRegistered = false;
+        return true;
+    }
+    else
+        return false;
 
-    return false;
+}
+
+const std::string* DBusInterfaceAdaptor::getObjectPath() const
+{
+    return ObjectPath;
+}
+void DBusInterfaceAdaptor::setObjectPath(const std::string& DBusObjectPath)
+{
+
 }
 //=============================================DBusAdaptor=============================================//
 
@@ -50,8 +80,8 @@ bool DBusAdaptor::registerInterface(const QString& DBusObjectPath)
 //      (for more info: https://specifications.freedesktop.org/desktop-entry-spec/1.1/ar01s07.html)
 
 // public:
-OrgFreedesktopApplication::OrgFreedesktopApplication(QObject* parent, const QString& DBusServiceName, const QString& AppPath, const QVector<QMimeType>& SupportedMimeTypes, const QMimeDatabase& Mime_DB) :
-    DBusAdaptor(parent, DBusServiceName), AppPath(&AppPath), SupportedMimeTypes(&SupportedMimeTypes), Mime_DB(&Mime_DB)
+OrgFreedesktopApplication::OrgFreedesktopApplication(QObject* Parent, QDBusConnection* DBusConnection, const std::string* DBusServiceName, const std::string* AppPath, const QVector<QMimeType>* SupportedMimeTypes, const QMimeDatabase* MimeDB) :
+    DBusInterfaceAdaptor(Parent, DBusConnection, DBusServiceName), AppPath(AppPath), SupportedMimeTypes(SupportedMimeTypes), MimeDB(MimeDB)
 {}
 
 // public slots:
@@ -64,14 +94,14 @@ void OrgFreedesktopApplication::Activate(QVariantMap platform_data)
     for (QVariantMap::iterator it = platform_data.begin(); it != platform_data.end(); it++)
         env.insert(it.key().toLocal8Bit(), it.value().toByteArray());
 
-    proc.setProgram(*AppPath);
+    proc.setProgram(QString::fromStdString(*AppPath));
     proc.setProcessEnvironment(env);
     proc.startDetached();
 }
 void OrgFreedesktopApplication::Open(QStringList uris, QVariantMap platform_data)
 {
     try {
-        is_SupportedMimeTypes(uris);
+        IsSupportedMimeTypes(uris);
     } catch (std::invalid_argument& ex) {
         QDBusMessage::createError(QDBusError::InvalidArgs, ex.what());
         return;
@@ -83,7 +113,7 @@ void OrgFreedesktopApplication::Open(QStringList uris, QVariantMap platform_data
     for (QVariantMap::iterator it = platform_data.begin(); it != platform_data.end(); it++)
         env.insert(it.key().toLocal8Bit(), it.value().toByteArray());
 
-    proc.setProgram(*AppPath);
+    proc.setProgram(QString::fromStdString(*AppPath));
     proc.setArguments(uris);
     proc.setProcessEnvironment(env);
     proc.startDetached();
@@ -100,7 +130,7 @@ void OrgFreedesktopApplication::ActivateAction(QString action_name, QVariantList
 // If even one type is not valid or not supported throws std::invalid_argument
 //      with explaining error message
 // Otherwise returns true
-bool OrgFreedesktopApplication::is_SupportedMimeTypes(QStringList MimeTypes)
+bool OrgFreedesktopApplication::IsSupportedMimeTypes(QStringList MimeTypes)
 {
     QString err_mes_not_valid_types = "The following types is not valid:\n";
     QString err_mes_unsupported_types = "The following types is not supported:\n";
@@ -111,7 +141,7 @@ bool OrgFreedesktopApplication::is_SupportedMimeTypes(QStringList MimeTypes)
 
     for (QString MimeType : MimeTypes)
     {
-        QMimeType x = Mime_DB->mimeTypeForFile(MimeType.toLocal8Bit());
+        QMimeType x = MimeDB->mimeTypeForFile(MimeType.toLocal8Bit());
 
         if (!x.isValid())
         {
@@ -138,44 +168,175 @@ bool OrgFreedesktopApplication::is_SupportedMimeTypes(QStringList MimeTypes)
 //======================================OrgFreedesktopApplication======================================//
 
 
-//=========================================DesktopApplication==========================================//
-// DesktopApplication class
-// Main class for application registration
-// public:
-DesktopApplication::DesktopApplication(int argc, char *argv[], const QString& DBusServiceName, const QString& AppPath):
-    DBusServiceName(DBusServiceName), AppPath(AppPath)
+
+
+
+//=========================================DBusServiceAdaptor==========================================//
+// DBusServiceAdaptor class
+
+
+DBusServiceAdaptor::DBusServiceAdaptor(const DesktopApplication* ParentClass):
+    RunningDBusService(nullptr), DBusConnection(new QDBusConnection(QDBusConnection::sessionBus())), IsServiceRunning(false), ParentClass(ParentClass), DBusEventLoop(new QEventLoop())
+{}
+DBusServiceAdaptor::~DBusServiceAdaptor()
 {
-    QCoreApplication* App = new QCoreApplication(argc, argv);
-    this->App = App;
-}
-DesktopApplication::~DesktopApplication()
-{
-    delete App;
+    if (isServiceRunning())
+        stopService();
+
+    unregisterAllRegisteredInterfaces();
+    if (isServiceRegistered())
+        unregisterService();
+    if (DBusEventLoop != nullptr)
+    {
+        delete DBusEventLoop;
+        DBusEventLoop = nullptr;
+    }
+
+    if (RunningDBusService != nullptr)
+    {
+        delete RunningDBusService;
+        RunningDBusService = nullptr;
+    }
 }
 
-// Register interface ${BDusInterface} with object path ${DBusObjectPath}
-bool DesktopApplication::registerDBusInterface(const std::string& BDusInterface, const std::string& DBusObjectPath)
+bool DBusServiceAdaptor::registerService(const std::string& DBusServiceName)
+{
+    this->ServiceName = new std::string(DBusServiceName);
+
+    if(!isServiceRegistered())
+    {
+        DBusConnection->registerService(QString::fromStdString(*ServiceName));
+        return true;
+    }
+    else
+        return false;
+}
+bool DBusServiceAdaptor::isServiceRegistered()
+{
+    return DBusConnection->interface()->isServiceRegistered(QString::fromStdString(*ServiceName));
+}
+bool DBusServiceAdaptor::unregisterService()
+{
+    if (isServiceRegistered())
+    {
+        DBusConnection->unregisterService(QString::fromStdString(*ServiceName));
+        return true;
+    }
+    else
+        return false;
+}
+
+bool DBusServiceAdaptor::registerOrgFreedesktopApplicationInterface(const std::string& DBusObjectPath)
 {
     // notion: Classes derived from QDBusAbstractAdaptor must be created on the heap using the new operator
     //      and must not be deleted by the user (they will be deleted automatically when the object they are
     //      connected to is also deleted).
 
-    if (BDusInterface == "org.freedesktop.Application")
-    {
-        OrgFreedesktopApplication* OrgFreedesktopApplication_interface
-            = new OrgFreedesktopApplication(App, DBusServiceName, AppPath, SupportedMimeTypes, Mime_DB);
+    OrgFreedesktopApplication* OrgFreedesktopApplication_interface
+        = new OrgFreedesktopApplication(DBusEventLoop, DBusConnection, getServiceName(), ParentClass->getAppPath(), ParentClass->_getSupportedMimeTypes(), ParentClass->_getMimeDB());
 
-        if(OrgFreedesktopApplication_interface->registerInterface(QString::fromStdString(DBusObjectPath)))
-        {
-            dbus_interfaces[QString::fromStdString(BDusInterface)] = OrgFreedesktopApplication_interface;
-            return true;
-        }
-        else
-            return false;
+    if(OrgFreedesktopApplication_interface->registerInterface(DBusObjectPath))
+    {
+        DBusInterfaces["OrgFreedesktopApplication"] = OrgFreedesktopApplication_interface;
+        return true;
     }
     else
         return false;
 }
+bool DBusServiceAdaptor::isOrgFreedesktopApplicationInterfaceRegistered()
+{
+    return DBusInterfaces.contains("OrgFreedesktopApplication");
+}
+bool DBusServiceAdaptor::unregisterOrgFreedesktopApplicationInterface()
+{
+    auto it = DBusInterfaces.find("OrgFreedesktopApplication");
+    if (it != DBusInterfaces.end())
+    {
+        DBusConnection->unregisterObject(QString::fromStdString(*it.value()->getObjectPath()));
+        DBusInterfaces.erase(it);
+        return true;
+    }
+    else
+        return false;
+}
+
+bool DBusServiceAdaptor::unregisterAllRegisteredInterfaces()
+{
+    for (auto it : DBusInterfaces)
+        DBusConnection->unregisterObject(QString::fromStdString(*it->getObjectPath()));
+
+    DBusInterfaces.clear();
+    return true;
+}
+
+
+bool DBusServiceAdaptor::runService()
+{
+    RunningDBusService = new std::thread([&]()
+    {
+        IsServiceRunning = true;
+        DBusEventLoop->exec();
+    });
+
+    return true;
+}
+bool DBusServiceAdaptor::isServiceRunning()
+{
+    return IsServiceRunning;
+}
+bool DBusServiceAdaptor::stopService()
+{
+    DBusEventLoop->quit();
+    RunningDBusService->join();
+
+    IsServiceRunning = false;
+
+    delete RunningDBusService;
+    RunningDBusService = nullptr;
+
+    return true;
+}
+
+
+const std::string* DBusServiceAdaptor::getServiceName() const
+{
+    return ServiceName;
+}
+
+void set_DBusServiceName(const std::string& DBusServiceName)
+{
+
+}
+
+
+//=========================================DBusServiceAdaptor==========================================//
+
+
+
+
+
+
+
+
+
+
+//=========================================DesktopApplication==========================================//
+// DesktopApplication class
+// Main class for application registration
+// public:
+DesktopApplication::DesktopApplication(const std::string& AppPath, const std::string& AppName):
+    AppPath(new std::string(AppPath)),
+    AppName(new std::string(AppName)),
+    MimeDB(new QMimeDatabase()),
+    DBusService(new DBusServiceAdaptor(this))
+{}
+DesktopApplication::~DesktopApplication()
+{
+    exit();
+}
+
+
+
 
 // Sets supported Mime types for application
 void DesktopApplication::setSupportedMimeTypes(const std::vector<std::string>& SupportedMimeTypes)
@@ -185,7 +346,7 @@ void DesktopApplication::setSupportedMimeTypes(const std::vector<std::string>& S
 
     for(std::string sup_mime_type : SupportedMimeTypes)
     {
-        QMimeType x = Mime_DB.mimeTypeForName(QString::fromStdString(sup_mime_type));
+        QMimeType x = MimeDB->mimeTypeForName(QString::fromStdString(sup_mime_type));
         if (x.isValid())
             this->SupportedMimeTypes.push_back(x);
         else
@@ -199,11 +360,68 @@ void DesktopApplication::setSupportedMimeTypes(const std::vector<std::string>& S
         throw std::invalid_argument(err_mes);
 }
 
-// Starts dbus service
-bool DesktopApplication::runDBusService()
+
+int DesktopApplication::exit()
 {
-    return App->exec();
+    if (MimeDB != nullptr)
+    {
+        delete MimeDB;
+        MimeDB = nullptr;
+    }
+    if (DBusService != nullptr)
+    {
+        if (DBusService->isServiceRunning())
+            DBusService->stopService();
+        if (DBusService->isOrgFreedesktopApplicationInterfaceRegistered())
+            DBusService->unregisterOrgFreedesktopApplicationInterface();
+        if (DBusService->isServiceRegistered())
+            DBusService->unregisterService();
+
+        delete DBusService;
+        DBusService = nullptr;
+    }
+
+    return 0;
 }
+
+// Getters
+DBusServiceAdaptor* DesktopApplication::getDBusService() const
+{
+    if (DBusService != nullptr)
+        return DBusService;
+
+    throw std::exception();
+}
+const std::string* DesktopApplication::getAppPath() const
+{
+    return AppPath;
+}
+const std::string* DesktopApplication::getAppName() const
+{
+    return AppName;
+}
+
+std::vector<std::string> DesktopApplication::getSupportedMimeTypes() const
+{
+    std::vector<std::string> SupportedMimeTypesStr;
+
+    for (QMimeType SupportedMimeType : SupportedMimeTypes)
+        SupportedMimeTypesStr.push_back(SupportedMimeType.name().toStdString());
+
+    return SupportedMimeTypesStr;
+}
+
+
+// private:
+const QVector<QMimeType>* DesktopApplication::_getSupportedMimeTypes() const
+{
+    return &SupportedMimeTypes;
+}
+const QMimeDatabase* DesktopApplication::_getMimeDB() const
+{
+    return MimeDB;
+}
+
 
 //=========================================DesktopApplication==========================================//
 

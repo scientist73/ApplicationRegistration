@@ -3,6 +3,7 @@
 
 
 #include <QtDBus/QDBusAbstractAdaptor>
+#include <QtDBus/QDBusConnection>
 #include <QCoreApplication>
 #include <QMimeDatabase>
 #include <QMimeType>
@@ -10,28 +11,39 @@
 #include <QVector>
 #include <QStringList>
 #include <QVariantList>
+#include <QEventLoop>
 #include <QObject>
 
+#include <thread>
 #include <string>
 #include <vector>
 
 
-class DBusAdaptor : public QDBusAbstractAdaptor
+class DBusInterfaceAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
 public:
-    explicit DBusAdaptor(QObject* parent, const QString& DBusServiceName);
+    explicit DBusInterfaceAdaptor(QObject* Parent, QDBusConnection* DBusConnection, const std::string* DBusServiceName);
 
-    virtual bool registerInterface(const QString& DBusObjectPath);
+    virtual bool registerInterface(const std::string& DBusObjectPath);
+    virtual bool isInterfaceRegistered();
+    virtual bool unregisterInterface();
+
+    virtual const std::string* getObjectPath() const;
+
+    virtual void setObjectPath(const std::string& DBusObjectPath);
 
 protected:
-    const QString* DBusServiceName; // example, 'org.freedesktop.DBus'
-    QString DBusObjectPath; // example, '/org/freedesktop/DBus'
+    const std::string* ServiceName; // example, 'org.freedesktop.DBus'
+    std::string* ObjectPath; // example, '/org/freedesktop/DBus'
+    bool IsInterfaceRegistered;
 
-    QObject* parent;
+    QDBusConnection* DBusConnection;
+
+    QObject* Parent;
 };
 
-class OrgFreedesktopApplication : public DBusAdaptor
+class OrgFreedesktopApplication : public DBusInterfaceAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.freedesktop.Application")
@@ -54,11 +66,12 @@ class OrgFreedesktopApplication : public DBusAdaptor
 
 public:
     explicit OrgFreedesktopApplication(
-        QObject* parent,
-        const QString& DBusServiceName,
-        const QString& AppPath,
-        const QVector<QMimeType>& SupportedMimeTypes,
-        const QMimeDatabase& Mime_DB
+        QObject* Parent,
+        QDBusConnection* DBusConnection,
+        const std::string* DBusServiceName,
+        const std::string* AppPath,
+        const QVector<QMimeType>* SupportedMimeTypes,
+        const QMimeDatabase* MimeDB
         );
 
 public slots:
@@ -67,35 +80,91 @@ public slots:
     void ActivateAction(QString action_name, QVariantList parameter, QVariantMap platform_data);
 
 private:
-    bool is_SupportedMimeTypes(QStringList MimeTypes);
+    bool IsSupportedMimeTypes(QStringList MimeTypes);
 
 
-    const QString* AppPath; // the working directory to run the program in.
+    const std::string* AppPath; // the working directory to run the program in.
 
     const QVector<QMimeType>* SupportedMimeTypes;
-    const QMimeDatabase* Mime_DB;
+    const QMimeDatabase* MimeDB;
 };
+
+class DesktopApplication;
+
+
+class DBusServiceAdaptor
+{
+public:
+    DBusServiceAdaptor(const DesktopApplication* ParentClass);
+    ~DBusServiceAdaptor();
+
+    bool registerService(const std::string& DBusServiceName);
+    bool isServiceRegistered();
+    bool unregisterService();
+
+    // OrgFreedesktopApplication
+    bool registerOrgFreedesktopApplicationInterface(const std::string& DBusObjectPath);
+    bool isOrgFreedesktopApplicationInterfaceRegistered();
+    bool unregisterOrgFreedesktopApplicationInterface();
+
+    bool unregisterAllRegisteredInterfaces();
+
+    bool runService();
+    bool isServiceRunning();
+    bool stopService();
+
+    bool exitService();
+
+
+    const std::string* getServiceName() const;
+
+    void setServiceName(const std::string& DBusServiceName);
+
+private:
+    std::string* ServiceName;
+    bool IsServiceRunning;
+
+    QMap<const std::string, DBusInterfaceAdaptor*> DBusInterfaces;
+
+    std::thread* RunningDBusService;
+    QDBusConnection* DBusConnection;
+    QEventLoop* DBusEventLoop;
+
+    const DesktopApplication* ParentClass;
+};
+
+
 
 class DesktopApplication
 {
+    friend bool DBusServiceAdaptor::registerOrgFreedesktopApplicationInterface(const std::string&);
 public:
-    DesktopApplication(int argc, char *argv[], const QString& DBusServiceName, const QString& AppPath);
+    DesktopApplication(const std::string& AppPath, const std::string& AppName);
     ~DesktopApplication();
 
-    bool registerDBusInterface(const std::string& BDusInterface, const std::string& DBusObjectPath);
+    int exit();
+
+    DBusServiceAdaptor* getDBusService() const;
+    const std::string* getAppPath() const;
+    const std::string* getAppName() const;
+    std::vector<std::string> getSupportedMimeTypes() const;
+
+    void setAppPath(const std::string& AppPath);
+    void setAppName(const std::string& AppName);
     void setSupportedMimeTypes(const std::vector<std::string>& SupportedMimeTypes);
-    bool runDBusService();
 
 private:
-    QMap<const QString, DBusAdaptor*> dbus_interfaces;
+    const QVector<QMimeType>* _getSupportedMimeTypes() const;
+    const QMimeDatabase* _getMimeDB() const;
 
-    QString DBusServiceName;
-    QString AppPath;
+
+    std::string* AppPath;
+    std::string* AppName;
 
     QVector<QMimeType> SupportedMimeTypes;
 
-    QMimeDatabase Mime_DB;
-    QCoreApplication* App;
+    QMimeDatabase* MimeDB;
+    DBusServiceAdaptor* DBusService;
 };
 
 
