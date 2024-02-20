@@ -84,10 +84,10 @@ cmake --install .
 ### with script
 ```
 apt update
-apt install git
+apt install git -y
 git clone https://github.com/scientist73/ApplicationRegistration.git
 cd ApplicationRegistration
-./BuildScript.sh
+bash BuildScript.sh
 ```
 ## Testing
 To test the framework, run the following commands

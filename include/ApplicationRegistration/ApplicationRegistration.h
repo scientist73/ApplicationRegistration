@@ -26,7 +26,7 @@ public:
     explicit DBusInterfaceAdaptor(QObject* Parent, QDBusConnection* DBusConnection, const std::string* DBusServiceName);
 
     virtual bool registerInterface(const std::string& DBusObjectPath);
-    virtual bool isInterfaceRegisteводчикred();
+    virtual bool isInterfaceRegistered();
     virtual bool unregisterInterface();
 
     virtual const std::string* getObjectPath() const;
