@@ -93,7 +93,7 @@ bash BuildScript.sh
 To test the framework, run the following commands
 ```
 export $(dbus-launch)
-./DBusService test TestProg text/plain ru.notepad /ru/notepad &
+DBusService test TestProg text/plain ru.notepad /ru/notepad &
 gdbus call --session \
     --dest ru.notepad \
     --object-path /ru/notepad \

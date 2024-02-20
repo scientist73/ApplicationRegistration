@@ -1,6 +1,6 @@
 #!/bin/bash
 export $(dbus-launch)
-./DBusService test TestProg text/plain ru.notepad /ru/notepad &
+DBusService test TestProg text/plain ru.notepad /ru/notepad &
 
 gdbus call --session \
     --dest ru.notepad \
