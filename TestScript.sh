@@ -1,5 +1,4 @@
 #!/bin/bash
-dbus-launch
 export $(dbus-launch)
 ./DBusService test TestProg text/plain ru.notepad /ru/notepad &
 
