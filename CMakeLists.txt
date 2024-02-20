@@ -72,7 +72,7 @@ include(GNUInstallDirs)
 install(TARGETS ApplicationRegistration DemoAppReg DBusService TestProg
     LIBRARY         DESTINATION lib/x86_64-linux-gnu
     PUBLIC_HEADER   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ApplicatinRegistration
-    RUNTIME         DESTINATION ${CMAKE_INSTALL_BINDIR}/ApplicationRegistration
+    RUNTIME         DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
 #set(CMAKE_INSTALL_PREFIX "/home/scientist73/projects/ApplicationRegistration/install")
