@@ -39,23 +39,10 @@ Names of all available DBus interfaces (for *${BDusInterface}* in **runDBusServi
 ### Desktop file
 This section is not ready yet
 
-## Usage example
-```
-#include "ApplicationRegistration.h"
-
-
-int main(int argc, char *argv[])
-{
-    DesktopApplication app(argc, argv, "ru.notepad", "/home/user/notepad");
-    app.setSupportedMimeTypes({"text/plain"});
-    app.registerDBusInterface("org.freedesktop.Application", "/ru/notepad");
-    return app.runDBusService();
-}
-```
 
 ## Dependencies
 List of external dependencies:
-- qt6-base-dev (>= 6.6) (already in the deb package)
+- qt6-base-dev (>= 6.2.4) (already in the deb package)
 - libdbus-1-3
 - libglib2.0-dev    
 
@@ -74,6 +61,7 @@ wget https://github.com/scientist73/ApplicationRegistration/releases/download/v1
 apt install libdbus-1-3
 apt install libglib2.0-dev
 apt install qt6-base-dev
+apt install dbus-x11
 dpkg -i ApplicationRegistration-1.0.0.0-linux.deb
 ```
 ### cmake 
@@ -102,15 +90,25 @@ cd ApplicationRegistration
 ./BuildScript.sh
 ```
 ## Testing
-To test the framework, run TestScript.sh
+To test the framework, run the following commands
 ```
-dbus-launch
 export $(dbus-launch)
+./DBusService test TestProg text/plain ru.notepad /ru/notepad &
+gdbus call --session \
+    --dest ru.notepad \
+    --object-path /ru/notepad \
+    --method org.freedesktop.Application.Open \
+    "['text.txt']" "{'DIR':<'/ApplicationRegistration'>}"
 ```
-(this test prog cannot be closed. One way to terminate it -
-close cmd line :)
+This test program copies the file *file.** with a supported extension 
+from the *DIR* directory and names it *copy_file.**.
+
+Now there is a file in dir /ApplicationRegistration named
+*copy_text.txt*.
 
 ## Implementation details
+*This section is old*
+
 This framework consists of several classes, each of which does
 some specific task:
 - **DBusInterfaceAdaptor** - parent class for all DBus interfaces,
