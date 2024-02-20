@@ -14,6 +14,10 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_CXX_COMPILER clang++)
+
+
+
 set(CPACK_PACKAGE_NAME ApplicationRegistration)
 set(CPACK_PACKAGE_VERSION 1.0.0.0)
 set(CPACK_SYSTEM_NAME linux)
@@ -46,16 +50,26 @@ target_include_directories(ApplicationRegistration PRIVATE
 set_target_properties(ApplicationRegistration PROPERTIES PUBLIC_HEADER  ${app_reg_headers})
 
 add_executable(DemoAppReg
-  src/DemoAppReg.cpp
+    src/DemoAppReg.cpp
 )
 target_link_libraries(DemoAppReg PRIVATE ApplicationRegistration)
 target_include_directories(DemoAppReg PRIVATE
     ${app_reg_include_dirs}
 )
 
+add_executable(DBusService
+    src/DBusService.cpp
+)
+target_link_libraries(DBusService PRIVATE ApplicationRegistration)
+target_include_directories(DBusService PRIVATE
+    ${app_reg_include_dirs}
+)
+
+add_executable(TestProg
+    src/TestProg.cpp)
 
 include(GNUInstallDirs)
-install(TARGETS ApplicationRegistration DemoAppReg
+install(TARGETS ApplicationRegistration #DemoAppReg
     LIBRARY         DESTINATION lib/x86_64-linux-gnu
     PUBLIC_HEADER   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ApplicatinRegistration
     RUNTIME         DESTINATION ${CMAKE_INSTALL_BINDIR}/ApplicationRegistration

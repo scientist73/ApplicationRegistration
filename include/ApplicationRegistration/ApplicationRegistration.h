@@ -14,7 +14,7 @@
 #include <QEventLoop>
 #include <QObject>
 
-#include <thread>
+//#include <thread>
 #include <string>
 #include <vector>
 
@@ -92,10 +92,11 @@ private:
 class DesktopApplication;
 
 
-class DBusServiceAdaptor
+class DBusServiceAdaptor : public QObject
 {
+    Q_OBJECT
 public:
-    DBusServiceAdaptor(const DesktopApplication* ParentClass);
+    explicit DBusServiceAdaptor(const DesktopApplication* ParentClass);
     ~DBusServiceAdaptor();
 
     bool registerService(const std::string& DBusServiceName);
@@ -113,22 +114,22 @@ public:
     bool isServiceRunning();
     bool stopService();
 
-    bool exitService();
-
 
     const std::string* getServiceName() const;
 
     void setServiceName(const std::string& DBusServiceName);
 
+public slots:
+    void exit();
 private:
     std::string* ServiceName;
     bool IsServiceRunning;
 
     QMap<const std::string, DBusInterfaceAdaptor*> DBusInterfaces;
 
-    std::thread* RunningDBusService;
+    //std::thread* RunningDBusService;
     QDBusConnection* DBusConnection;
-    QEventLoop* DBusEventLoop;
+    QCoreApplication* DBusApp;
 
     const DesktopApplication* ParentClass;
 };
@@ -141,8 +142,6 @@ class DesktopApplication
 public:
     DesktopApplication(const std::string& AppPath, const std::string& AppName);
     ~DesktopApplication();
-
-    int exit();
 
     DBusServiceAdaptor* getDBusService() const;
     const std::string* getAppPath() const;

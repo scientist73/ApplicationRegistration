@@ -1,4 +1,5 @@
 #include "ApplicationRegistration.h"
+#include <QProcess>
 #include <vector>
 #include <iostream>
 #include <string>
@@ -18,20 +19,17 @@ size_t menu()
     std::cin >> choise;
     std::cin.ignore();
 
-    //return choise;
-    return 1;
+    return choise;
 }
 
-void init(DesktopApplication*& app)
+
+
+
+int main(int argc, char *argv[])
 {
-    if (app != nullptr)
-    {
-        delete app;
-        app = nullptr;
-    }
-
-
     std::string AppPath, AppName, SupportedMimeTypesStr;
+    QProcess* RunningDBusService;
+    qint64* RunningDBusServicePID;
 
     std::cout << "Welcome to demo program for ApplicationRegistation framework\n";
     std::cout << "===================================================================\n";
@@ -39,17 +37,14 @@ void init(DesktopApplication*& app)
     std::cout << "Before we start lets fill in the basic information about the application.\n\n";
 
     std::cout << "Enter application name (used to refer to the app): ";
-    //std::getline(std::cin, AppName);
-    AppName = "test";
+    std::getline(std::cin, AppName);
 
     std::cout << "Enter full path to the executable: ";
-    //std::getline(std::cin, AppPath);
-    AppPath = "code";
+    std::getline(std::cin, AppPath);
 
     std::cout << "Enter supported mime types for the application, separated by commas\n";
     std::cout << "(for example, \"text/plain, ...\") ";
-    //std::getline(std::cin, SupportedMimeTypesStr);
-    SupportedMimeTypesStr = "text/plain";
+    std::getline(std::cin, SupportedMimeTypesStr);
 
     std::string delimiter = ",";
 
@@ -76,18 +71,8 @@ void init(DesktopApplication*& app)
 
 
 
-    app = new DesktopApplication (AppPath, AppName);
-    app->setSupportedMimeTypes(SupportedMimeTypes);
-}
-
-
-
-int main(int argc, char *argv[])
-{
-
-    DesktopApplication* App = nullptr;
-
-    init(App);
+    DesktopApplication* App = new DesktopApplication (AppPath, AppName);
+    App->setSupportedMimeTypes(SupportedMimeTypes);
 
     while(true)
     {
@@ -98,17 +83,27 @@ int main(int argc, char *argv[])
             std::string DBusServiceName, DBusObjectPath;
 
             std::cout << "Enter dbus service name: ";
-            //std::getline(std::cin, DBusServiceName);
-            DBusServiceName = "ru.notepad";
+            std::getline(std::cin, DBusServiceName);
+            //DBusServiceName = "ru.notepad";
 
             std::cout << "Enter dbus object path: ";
-            //std::getline(std::cin, DBusObjectPath);
-            DBusObjectPath = "/ru/notepad";
+            std::getline(std::cin, DBusObjectPath);
+            //DBusObjectPath = "/ru/notepad";
 
-            App->getDBusService()->registerService(DBusServiceName);
-            App->getDBusService()->registerOrgFreedesktopApplicationInterface(DBusObjectPath);
 
-            App->getDBusService()->runService();
+
+            RunningDBusService = new QProcess;
+            RunningDBusService->setProgram("/home/scientist73/projects/ApplicationRegistration/build/DBusService");
+            RunningDBusService->setArguments(   {
+                                                QString::fromStdString(AppName),
+                                                QString::fromStdString(AppPath),
+                                                QString::fromStdString(SupportedMimeTypesStr),
+                                                QString::fromStdString(DBusServiceName),
+                                                QString::fromStdString(DBusObjectPath)
+                                                }
+                                             );
+            RunningDBusService->start();
+
         }
             break;
 
@@ -155,13 +150,11 @@ int main(int argc, char *argv[])
 
             if (ans == "y" || ans == "yes")
             {
-                if (App->getDBusService()->isServiceRunning())
+                if (RunningDBusService != nullptr)
                 {
-                    App->getDBusService()->stopService();
-                    if (App->getDBusService()->isOrgFreedesktopApplicationInterfaceRegistered())
-                        App->getDBusService()->unregisterOrgFreedesktopApplicationInterface();
-                    if (App->getDBusService()->isServiceRegistered())
-                        App->getDBusService()->unregisterService();
+                    RunningDBusService->terminate();
+                    delete RunningDBusService;
+                    RunningDBusService = nullptr;
                 }
                 else
                     std::cout << "Application wasn't registered on the dbus.\n";
@@ -183,7 +176,8 @@ int main(int argc, char *argv[])
             if (ans == "y" || ans == "yes")
             {
                 std::cout << "Exiting the program...\n";
-                return App->exit();
+                delete App;
+                return 0;
             }
             else if (ans == "n" || ans == "no")
                 std::cout << "Return to main menu.\n";

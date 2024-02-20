@@ -4,7 +4,7 @@
 #include <QtDBus/QDBusConnectionInterface>
 #include <QProcess>
 
-#include <thread>
+//#include <thread>
 
 
 //=============================================DBusAdaptor=============================================//
@@ -22,9 +22,7 @@ DBusInterfaceAdaptor::DBusInterfaceAdaptor(QObject* Parent, QDBusConnection* DBu
     ServiceName(DBusServiceName),
     ObjectPath(nullptr),
     IsInterfaceRegistered(false)
-{
-
-}
+{}
 
 // Register dbus interface
 // These funcs is virtual, so u can override in child class if needed
@@ -81,7 +79,10 @@ void DBusInterfaceAdaptor::setObjectPath(const std::string& DBusObjectPath)
 
 // public:
 OrgFreedesktopApplication::OrgFreedesktopApplication(QObject* Parent, QDBusConnection* DBusConnection, const std::string* DBusServiceName, const std::string* AppPath, const QVector<QMimeType>* SupportedMimeTypes, const QMimeDatabase* MimeDB) :
-    DBusInterfaceAdaptor(Parent, DBusConnection, DBusServiceName), AppPath(AppPath), SupportedMimeTypes(SupportedMimeTypes), MimeDB(MimeDB)
+    DBusInterfaceAdaptor(Parent, DBusConnection, DBusServiceName),
+    AppPath(AppPath),
+    SupportedMimeTypes(SupportedMimeTypes),
+    MimeDB(MimeDB)
 {}
 
 // public slots:
@@ -176,27 +177,20 @@ bool OrgFreedesktopApplication::IsSupportedMimeTypes(QStringList MimeTypes)
 
 
 DBusServiceAdaptor::DBusServiceAdaptor(const DesktopApplication* ParentClass):
-    RunningDBusService(nullptr), DBusConnection(new QDBusConnection(QDBusConnection::sessionBus())), IsServiceRunning(false), ParentClass(ParentClass), DBusEventLoop(new QEventLoop())
-{}
+    //RunningDBusService(nullptr),
+    DBusConnection(new QDBusConnection(QDBusConnection::sessionBus())),
+    IsServiceRunning(false),
+    ParentClass(ParentClass)
+{
+    int argv = 1;
+    char* args[] = { (char*)"Default" };
+    DBusApp = new QCoreApplication(argv, args);
+
+    QObject::connect(DBusApp, &QCoreApplication::aboutToQuit, this, &DBusServiceAdaptor::exit);
+}
 DBusServiceAdaptor::~DBusServiceAdaptor()
 {
-    if (isServiceRunning())
-        stopService();
-
-    unregisterAllRegisteredInterfaces();
-    if (isServiceRegistered())
-        unregisterService();
-    if (DBusEventLoop != nullptr)
-    {
-        delete DBusEventLoop;
-        DBusEventLoop = nullptr;
-    }
-
-    if (RunningDBusService != nullptr)
-    {
-        delete RunningDBusService;
-        RunningDBusService = nullptr;
-    }
+    exit();
 }
 
 bool DBusServiceAdaptor::registerService(const std::string& DBusServiceName)
@@ -206,6 +200,7 @@ bool DBusServiceAdaptor::registerService(const std::string& DBusServiceName)
     if(!isServiceRegistered())
     {
         DBusConnection->registerService(QString::fromStdString(*ServiceName));
+        qDebug() << "Service registered";
         return true;
     }
     else
@@ -233,7 +228,7 @@ bool DBusServiceAdaptor::registerOrgFreedesktopApplicationInterface(const std::s
     //      connected to is also deleted).
 
     OrgFreedesktopApplication* OrgFreedesktopApplication_interface
-        = new OrgFreedesktopApplication(DBusEventLoop, DBusConnection, getServiceName(), ParentClass->getAppPath(), ParentClass->_getSupportedMimeTypes(), ParentClass->_getMimeDB());
+        = new OrgFreedesktopApplication(DBusApp, DBusConnection, getServiceName(), ParentClass->getAppPath(), ParentClass->_getSupportedMimeTypes(), ParentClass->_getMimeDB());
 
     if(OrgFreedesktopApplication_interface->registerInterface(DBusObjectPath))
     {
@@ -272,11 +267,8 @@ bool DBusServiceAdaptor::unregisterAllRegisteredInterfaces()
 
 bool DBusServiceAdaptor::runService()
 {
-    RunningDBusService = new std::thread([&]()
-    {
-        IsServiceRunning = true;
-        DBusEventLoop->exec();
-    });
+    IsServiceRunning = true;
+    DBusApp->exec();
 
     return true;
 }
@@ -286,15 +278,36 @@ bool DBusServiceAdaptor::isServiceRunning()
 }
 bool DBusServiceAdaptor::stopService()
 {
-    DBusEventLoop->quit();
-    RunningDBusService->join();
+    DBusApp->quit();
+    //RunningDBusService->join();
 
     IsServiceRunning = false;
 
-    delete RunningDBusService;
-    RunningDBusService = nullptr;
+    //delete RunningDBusService;
+    //RunningDBusService = nullptr;
 
     return true;
+}
+
+void DBusServiceAdaptor::exit()
+{
+    if (isServiceRunning())
+        stopService();
+
+    unregisterAllRegisteredInterfaces();
+    if (isServiceRegistered())
+        unregisterService();
+    if (DBusApp != nullptr)
+    {
+        delete DBusApp;
+        DBusApp = nullptr;
+    }
+
+    //if (RunningDBusService != nullptr)
+    //{
+    //    delete RunningDBusService;
+    //    RunningDBusService = nullptr;
+    //}
 }
 
 
@@ -332,7 +345,22 @@ DesktopApplication::DesktopApplication(const std::string& AppPath, const std::st
 {}
 DesktopApplication::~DesktopApplication()
 {
-    exit();
+    if (MimeDB != nullptr)
+    {
+        delete MimeDB;
+        MimeDB = nullptr;
+    }
+    if (DBusService != nullptr)
+    {
+        if (DBusService->isServiceRunning())
+            DBusService->stopService();
+        DBusService->unregisterAllRegisteredInterfaces();
+        if (DBusService->isServiceRegistered())
+            DBusService->unregisterService();
+
+        delete DBusService;
+        DBusService = nullptr;
+    }
 }
 
 
@@ -360,29 +388,6 @@ void DesktopApplication::setSupportedMimeTypes(const std::vector<std::string>& S
         throw std::invalid_argument(err_mes);
 }
 
-
-int DesktopApplication::exit()
-{
-    if (MimeDB != nullptr)
-    {
-        delete MimeDB;
-        MimeDB = nullptr;
-    }
-    if (DBusService != nullptr)
-    {
-        if (DBusService->isServiceRunning())
-            DBusService->stopService();
-        if (DBusService->isOrgFreedesktopApplicationInterfaceRegistered())
-            DBusService->unregisterOrgFreedesktopApplicationInterface();
-        if (DBusService->isServiceRegistered())
-            DBusService->unregisterService();
-
-        delete DBusService;
-        DBusService = nullptr;
-    }
-
-    return 0;
-}
 
 // Getters
 DBusServiceAdaptor* DesktopApplication::getDBusService() const
