@@ -69,14 +69,14 @@ add_executable(TestProg
     src/TestProg.cpp)
 
 include(GNUInstallDirs)
-install(TARGETS ApplicationRegistration #DemoAppReg
+install(TARGETS ApplicationRegistration DemoAppReg DBusService TestProg
     LIBRARY         DESTINATION lib/x86_64-linux-gnu
     PUBLIC_HEADER   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ApplicatinRegistration
     RUNTIME         DESTINATION ${CMAKE_INSTALL_BINDIR}/ApplicationRegistration
 )
 
-set(CMAKE_INSTALL_PREFIX "/home/scientist73/projects/ApplicationRegistration/install")
-#set(CMAKE_INSTALL_PREFIX "/usr")
+#set(CMAKE_INSTALL_PREFIX "/home/scientist73/projects/ApplicationRegistration/install")
+set(CMAKE_INSTALL_PREFIX "/usr")
 
 
 include(InstallRequiredSystemLibraries)

@@ -30,19 +30,10 @@ bool DBusInterfaceAdaptor::registerInterface(const std::string& DBusObjectPath)
 {
     this->ObjectPath = new std::string(DBusObjectPath);
 
-    if(DBusConnection->interface()->isServiceRegistered(QString::fromStdString(*ServiceName)))
-    {
-        DBusConnection->registerObject(QString::fromStdString(DBusObjectPath), Parent);
-        IsInterfaceRegistered = true;
-        qDebug() << "New service registered\n";
-        return true;
-    }
-    else
-    {
-        IsInterfaceRegistered = false;
-        qDebug() << "service is not exist\n";
-        return false;
-    }
+    DBusConnection->registerObject(QString::fromStdString(DBusObjectPath), Parent);
+    IsInterfaceRegistered = true;
+    qDebug() << "org.freedesktop.Application interface registered\n";
+    return true;
 }
 bool DBusInterfaceAdaptor::isInterfaceRegistered()
 {
@@ -87,7 +78,7 @@ OrgFreedesktopApplication::OrgFreedesktopApplication(QObject* Parent, QDBusConne
 
 // public slots:
 //org.freedesktop.Application interface methods implementation
-void OrgFreedesktopApplication::Activate(QVariantMap platform_data)
+QString OrgFreedesktopApplication::Activate(QVariantMap platform_data)
 {
     QProcess proc;
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -98,14 +89,16 @@ void OrgFreedesktopApplication::Activate(QVariantMap platform_data)
     proc.setProgram(QString::fromStdString(*AppPath));
     proc.setProcessEnvironment(env);
     proc.startDetached();
+
+    return "Program started";
 }
-void OrgFreedesktopApplication::Open(QStringList uris, QVariantMap platform_data)
+QString OrgFreedesktopApplication::Open(QStringList uris, QVariantMap platform_data)
 {
     try {
         IsSupportedMimeTypes(uris);
     } catch (std::invalid_argument& ex) {
         QDBusMessage::createError(QDBusError::InvalidArgs, ex.what());
-        return;
+        return ex.what();
     }
 
     QProcess proc;
@@ -118,6 +111,8 @@ void OrgFreedesktopApplication::Open(QStringList uris, QVariantMap platform_data
     proc.setArguments(uris);
     proc.setProcessEnvironment(env);
     proc.startDetached();
+
+    return "Program started";
 }
 void OrgFreedesktopApplication::ActivateAction(QString action_name, QVariantList parameter, QVariantMap platform_data)
 {
@@ -152,7 +147,7 @@ bool OrgFreedesktopApplication::IsSupportedMimeTypes(QStringList MimeTypes)
         else if(!SupportedMimeTypes->contains(x))
         {
             is_err_unsupported_types = true;
-            err_mes_unsupported_types += '\t' + MimeType + '\n';
+            err_mes_unsupported_types += '\t' + x.name() + '\n';
         }
     }
 

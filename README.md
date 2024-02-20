@@ -68,8 +68,9 @@ There are two ways to get ApplicationRegistration:
 Let's go through both ways.
 ### .deb file
 ```
-wget https://github.com/scientist73/ApplicationRegistration/releases/download/v1.0.0/ApplicationRegistration-1.0.0.0-linux.deb
 apt update
+apt install wget
+wget https://github.com/scientist73/ApplicationRegistration/releases/download/v1.0.0/ApplicationRegistration-1.0.0.0-linux.deb
 apt install libdbus-1-3
 apt install libglib2.0-dev
 apt install qt6-base-dev
@@ -78,21 +79,32 @@ dpkg -i ApplicationRegistration-1.0.0.0-linux.deb
 ### cmake 
 ```
 apt update
+apt install git
+git clone https://github.com/scientist73/ApplicationRegistration.git
+cd ApplicationRegistration
 apt install libdbus-1-3
 apt install libglib2.0-dev
 apt install qt6-base-dev
-git clone https://github.com/scientist73/ApplicationRegistration.git
-cd ApplicationRegistration
+apt install cmake
+apt install clang
 cmake -S . -B build
 cd build
 cmake --build .
 cmake --install .
 ```
-### Testing installation 
-To make sure the installation is correct 
+### with script
+```
+apt update
+apt install git
+git clone https://github.com/scientist73/ApplicationRegistration.git
+cd ApplicationRegistration
+./BuildScript.sh
+```
+## Testing
+To test the framework, run TestScript.sh
 ```
 cd /usr/bin/ApplicationRegistration
-./MAIN
+./MAIN &
 ```
 (this test prog cannot be closed. One way to terminate it -
 close cmd line :)

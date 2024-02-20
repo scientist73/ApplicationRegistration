@@ -75,8 +75,8 @@ public:
         );
 
 public slots:
-    void Activate(QVariantMap platform_data);
-    void Open(QStringList uris, QVariantMap platform_data);
+    QString Activate(QVariantMap platform_data);
+    QString Open(QStringList uris, QVariantMap platform_data);
     void ActivateAction(QString action_name, QVariantList parameter, QVariantMap platform_data);
 
 private:
